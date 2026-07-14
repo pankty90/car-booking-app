@@ -5,7 +5,7 @@ from streamlit_calendar import calendar
 import requests
 
 # ตั้งค่าหน้าเว็บ
-st.set_page_config(page_title="ระบบตารางจองรถยนต์รายปี", layout="wide")
+st.set_page_config(page_title="ระบบตารางจอง Boom-Lift,X-Lift", layout="wide")
 
 st.markdown("""
 <style>
@@ -18,7 +18,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="main-title">📅 ระบบตารางจองรถยนต์รายปี (Car Booking Dashboard)</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-title">📅 ระบบตารางจองBoom-Lift,X-Lift (Car Booking Dashboard)</h1>', unsafe_allow_html=True)
 
 # 🛑 จุดแก้ไขที่ 1: ลิงก์ดึงข้อมูลจาก Google Sheet ของคุณ
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1edm4HlYEnvlKE5ZOeinEeoJyFbWvwkS4nWjPiU673V0/edit?gid=0#gid=0"
@@ -63,7 +63,7 @@ df = load_sheet_data(DATA_URL)
 
 # ส่วนการกรองและการแสดงผลปฏิทิน
 unique_cars_for_view = ["ทั้งหมด (All Vehicles)"] + CAR_LIST
-selected_car = st.selectbox("🚗 คัดกรองประเภทรถยนต์สำหรับแสดงบนปฏิทิน", unique_cars_for_view, index=0)
+selected_car = st.selectbox("🚗 คัดกรองประเภทรถสำหรับแสดงบนปฏิทิน", unique_cars_for_view, index=0)
 
 filtered_df = df.copy()
 if selected_car != "ทั้งหมด (All Vehicles)" and not filtered_df.empty:
