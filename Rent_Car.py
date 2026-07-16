@@ -48,16 +48,16 @@ def load_sheet_data(url):
             df_sheet['Finish_Date'] = pd.to_datetime(df_sheet['Finish_Date'], errors='coerce')
             df_sheet = df_sheet.dropna(subset=['Start_Date', 'Finish_Date'])
             
-            # 🔥 ลอจิกสำคัญ: เอาเฉพาะแถวล่าสุดของแต่ละ Job No (ถ้ายกเลิก ข้อมูลใหม่จะมาทับ)
+            # 🔥 ลอจิกสำคัญ: เอาเฉพาะแถวล่าสุดของแต่ละ Job No
             df_sheet = df_sheet.sort_index().drop_duplicates(subset=['No'], keep='last')
             
-            # กรองเอาพวกที่ไม่ได้โดนยกเลิกออกไป (คัดกรองคำว่า [CANCELLED] ในช่อง User)
+            # กรองเอาพวกที่ไม่ได้โดนยกเลิกออกไป
             df_sheet = df_sheet[~df_sheet['User'].astype(str).str.startswith('[CANCELLED]')]
             
             return df_sheet
-        return pd.DataFrame(columns=['No', 'Car', 'Start_Date', 'Finish_Date', 'Location', 'User', 'Purpose'])
+        return pd.DataFrame(columns=['No', 'Car', 'Start_Date', 'Finish_Date', 'Location', 'User', 'วัตถุประสงค์การใช้งาน'])
     except Exception as e:
-        return pd.DataFrame(columns=['No', 'Car', 'Start_Date', 'Finish_Date', 'Location', 'User', 'Purpose'])
+        return pd.DataFrame(columns=['No', 'Car', 'Start_Date', 'Finish_Date', 'Location', 'User', 'วัตถุประสงค์การใช้งาน'])
 
 df = load_sheet_data(DATA_URL)
 
@@ -80,13 +80,12 @@ if not filtered_df.empty:
         user_info = f" [By: {row['User']}]" if 'User' in row and pd.notna(row['User']) else ""
         job_no = int(row['No'])
         
-        # ดึงข้อมูลวัตถุประสงค์การใช้งานมาแสดงผล (ถ้าไม่มีข้อความ ให้แสดงว่าไม่ได้ระบุ)
-        purpose_info = row['Purpose'] if 'Purpose' in row and pd.notna(row['Purpose']) else "ไม่ได้ระบุ"
+        # เปลี่ยนมาดึงค่าจากคอลัมน์ภาษาไทย "วัตถุประสงค์การใช้งาน" ให้ตรงกับใน Google Sheet
+        purpose_info = row['วัตถุประสงค์การใช้งาน'] if 'วัตถุประสงค์การใช้งาน' in row and pd.notna(row['วัตถุประสงค์การใช้งาน']) else "ไม่ได้ระบุ"
         
         start_str = row['Start_Date'].strftime('%d/%m/%Y %H:%M')
         finish_str = row['Finish_Date'].strftime('%d/%m/%Y %H:%M')
         
-        # รวมข้อความทั้งหมดรวมถึงวัตถุประสงค์ และใช้ \n ขึ้นบรรทัดใหม่
         full_title = (
             f"🚗 {row['Car']} (Job: {job_no})\n"
             f"📍 สถานที่: {row['Location']}\n"
@@ -96,7 +95,7 @@ if not filtered_df.empty:
         )
         
         calendar_events.append({
-            "title": full_title,  # ส่งข้อความยาวที่มีวัตถุประสงค์เข้าไปที่ title ตรงๆ
+            "title": full_title,
             "start": row['Start_Date'].isoformat(),
             "end": row['Finish_Date'].isoformat(),
             "backgroundColor": bg_color,
@@ -116,10 +115,9 @@ with col_left:
             input_location = st.selectbox("เลือกสถานที่ใช้งาน (Location)", LOCATION_LIST)
             input_user = st.text_input("ชื่อผู้ใช้งาน / ผู้จองรถ", placeholder="พิมพ์ชื่อ-นามสกุล")
             
-            # 🔥 เพิ่มฟิลด์: วัตถุประสงค์การนำรถไปใช้งาน
             input_purpose = st.text_area(
                 "วัตถุประสงค์การใช้งาน / รายละเอียดงาน", 
-                placeholder="ระบุวัตถุประสงค์หรือรายละเอียดงานที่ต้องการนำรถไปใช้ เช่น ซ่อมแซมระบบไฟฟ้าชั้น 2, ทำความสะอาดกระจก, ซ่อมหลังคาคลังสินค้า F1 ฯลฯ",
+                placeholder="ระบุวัตถุประสงค์ เช่น ซ่อมแซมระบบไฟฟ้า, เปลี่ยนหลอดไฟคลังสินค้า ฯลฯ",
                 max_chars=200
             )
             
@@ -144,7 +142,6 @@ with col_left:
                 elif start_datetime >= finish_datetime:
                     st.error("❌ วัน/เวลาเริ่มต้น ต้องเกิดขึ้นก่อนวัน/เวลาสิ้นสุด!")
                 else:
-                    # 🛠️ ตรวจสอบการจองซ้ำ (Conflict Check)
                     is_conflict = False
                     if not df.empty:
                         car_df = df[df['Car'] == input_car]
@@ -168,7 +165,6 @@ with col_left:
                             next_no = int(df['No'].max() + 1) if not df.empty else 1
                         
                         try:
-                            # 🛑 อย่าลืมแก้ไขค่า entry.YOUR_PURPOSE_ENTRY_ID ให้ตรงกับไอดีฟิลด์ใน Google Form ของคุณ
                             form_data = {
                                 "entry.1395769328": next_no,
                                 "entry.779880298": input_car,
@@ -176,7 +172,7 @@ with col_left:
                                 "entry.466730705": finish_datetime.strftime('%Y-%m-%d %H:%M:%S'),
                                 "entry.26753276": input_location,
                                 "entry.665863470": input_user.strip(),
-                                "entry.542993285": input_purpose.strip()  # 👈 ฟิลด์ใหม่เก็บวัตถุประสงค์
+                                "entry.542993285": input_purpose.strip()
                             }
                             
                             response = requests.post(FORM_URL, data=form_data)
@@ -211,8 +207,8 @@ with col_left:
                     st.error(f"❌ ไม่สามารถยกเลิกได้! รายการนี้ถูกจองโดยคุณ '{target_job['User']}' กรุณาระบุชื่อผู้จองให้ถูกต้อง")
                 else:
                     try:
-                        # ดึงวัตถุประสงค์การใช้งานเดิมไปส่งต่อด้วยเพื่อไม่ให้ข้อมูลฟิลด์ใหม่บนคลาวด์หายไป
-                        current_purpose = target_job['Purpose'] if 'Purpose' in target_job and pd.notna(target_job['Purpose']) else ""
+                        # แมปคอลัมน์ภาษาไทยในขั้นตอนส่งคำยกเลิก
+                        current_purpose = target_job['วัตถุประสงค์การใช้งาน'] if 'วัตถุประสงค์การใช้งาน' in target_job and pd.notna(target_job['วัตถุประสงค์การใช้งาน']) else ""
                         
                         cancel_data = {
                             "entry.1395769328": int(target_job['No']),
@@ -221,7 +217,7 @@ with col_left:
                             "entry.466730705": target_job['Finish_Date'].strftime('%Y-%m-%d %H:%M:%S'),
                             "entry.26753276": target_job['Location'],
                             "entry.665863470": f"[CANCELLED] {target_job['User']}",
-                            "entry.YOUR_PURPOSE_ENTRY_ID": current_purpose  # 👈 ส่งค่าวัตถุประสงค์เดิมกลับไปด้วยตอนยกเลิก
+                            "entry.542993285": current_purpose  # ใช้รหัสฟิลด์เดียวกับฟอร์มหลัก
                         }
                         
                         response = requests.post(FORM_URL, data=cancel_data)
