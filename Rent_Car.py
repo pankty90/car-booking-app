@@ -55,9 +55,9 @@ def load_sheet_data(url):
             df_sheet = df_sheet[~df_sheet['User'].astype(str).str.startswith('[CANCELLED]')]
             
             return df_sheet
-        return pd.DataFrame(columns=['No', 'Car', 'Start_Date', 'Finish_Date', 'Location', 'User'])
+        return pd.DataFrame(columns=['No', 'Car', 'Start_Date', 'Finish_Date', 'Location', 'User', 'Purpose'])
     except Exception as e:
-        return pd.DataFrame(columns=['No', 'Car', 'Start_Date', 'Finish_Date', 'Location', 'User'])
+        return pd.DataFrame(columns=['No', 'Car', 'Start_Date', 'Finish_Date', 'Location', 'User', 'Purpose'])
 
 df = load_sheet_data(DATA_URL)
 
@@ -80,20 +80,23 @@ if not filtered_df.empty:
         user_info = f" [By: {row['User']}]" if 'User' in row and pd.notna(row['User']) else ""
         job_no = int(row['No'])
         
-        # แก้ไขลูปสำหรับการสร้าง events ด้านบนโค้ดของคุณ
+        # ดึงข้อมูลวัตถุประสงค์การใช้งานมาแสดงผล (ถ้าไม่มีข้อความ ให้แสดงว่าไม่ได้ระบุ)
+        purpose_info = row['Purpose'] if 'Purpose' in row and pd.notna(row['Purpose']) else "ไม่ได้ระบุ"
+        
         start_str = row['Start_Date'].strftime('%d/%m/%Y %H:%M')
         finish_str = row['Finish_Date'].strftime('%d/%m/%Y %H:%M')
         
-        # รวมข้อความทั้งหมดไว้ในฟิลด์ title และใช้ \n ขึ้นบรรทัดใหม่
+        # รวมข้อความทั้งหมดรวมถึงวัตถุประสงค์ และใช้ \n ขึ้นบรรทัดใหม่
         full_title = (
             f"🚗 {row['Car']} (Job: {job_no})\n"
             f"📍 สถานที่: {row['Location']}\n"
             f"👤 ผู้จอง: {row['User']}\n"
+            f"🛠️ งานที่ทำ: {purpose_info}\n"
             f"⏱️ เวลา: {start_str} ถึง {finish_str}"
         )
         
         calendar_events.append({
-            "title": full_title,  # ส่งข้อความยาวเข้าไปที่ title ตรงๆ
+            "title": full_title,  # ส่งข้อความยาวที่มีวัตถุประสงค์เข้าไปที่ title ตรงๆ
             "start": row['Start_Date'].isoformat(),
             "end": row['Finish_Date'].isoformat(),
             "backgroundColor": bg_color,
@@ -113,6 +116,13 @@ with col_left:
             input_location = st.selectbox("เลือกสถานที่ใช้งาน (Location)", LOCATION_LIST)
             input_user = st.text_input("ชื่อผู้ใช้งาน / ผู้จองรถ", placeholder="พิมพ์ชื่อ-นามสกุล")
             
+            # 🔥 เพิ่มฟิลด์: วัตถุประสงค์การนำรถไปใช้งาน
+            input_purpose = st.text_area(
+                "วัตถุประสงค์การใช้งาน / รายละเอียดงาน", 
+                placeholder="ระบุวัตถุประสงค์หรือรายละเอียดงานที่ต้องการนำรถไปใช้ เช่น ซ่อมแซมระบบไฟฟ้าชั้น 2, ทำความสะอาดกระจก, ซ่อมหลังคาคลังสินค้า F1 ฯลฯ",
+                max_chars=200
+            )
+            
             c1, c2 = st.columns(2)
             with c1:
                 input_start_date = st.date_input("วันเริ่มต้น", date.today())
@@ -129,6 +139,8 @@ with col_left:
                 
                 if not input_user.strip():
                     st.error("❌ กรุณากรอกชื่อผู้ใช้งานก่อนบันทึกข้อมูลครับ!")
+                elif not input_purpose.strip():
+                    st.error("❌ กรุณาระบุรายละเอียดวัตถุประสงค์การนำไปใช้งานด้วยครับ!")
                 elif start_datetime >= finish_datetime:
                     st.error("❌ วัน/เวลาเริ่มต้น ต้องเกิดขึ้นก่อนวัน/เวลาสิ้นสุด!")
                 else:
@@ -148,7 +160,6 @@ with col_left:
                                 st.warning(f"⚠️ รายการที่ทับซ้อน: Job {conf_row['No']} โดย {conf_row['User']}")
                     
                     if not is_conflict:
-                        # หาเลข Job ถัดไปดื้อๆ (นับจากฐานข้อมูลจริงในกูเกิ้ลชีตที่ยังไม่ถูกกรองออก)
                         try:
                             raw_df = pd.read_csv(DATA_URL)
                             raw_df.columns = raw_df.columns.astype(str).str.strip()
@@ -157,14 +168,15 @@ with col_left:
                             next_no = int(df['No'].max() + 1) if not df.empty else 1
                         
                         try:
-                            # 🛑 จุดแก้ไขที่ 3: แทนที่หมายเลข entry.XXXXX ด้วยเลขของคุณ
+                            # 🛑 อย่าลืมแก้ไขค่า entry.YOUR_PURPOSE_ENTRY_ID ให้ตรงกับไอดีฟิลด์ใน Google Form ของคุณ
                             form_data = {
                                 "entry.1395769328": next_no,
                                 "entry.779880298": input_car,
                                 "entry.572197217": start_datetime.strftime('%Y-%m-%d %H:%M:%S'),
                                 "entry.466730705": finish_datetime.strftime('%Y-%m-%d %H:%M:%S'),
                                 "entry.26753276": input_location,
-                                "entry.665863470": input_user.strip()
+                                "entry.665863470": input_user.strip(),
+                                "entry.YOUR_PURPOSE_ENTRY_ID": input_purpose.strip()  # 👈 ฟิลด์ใหม่เก็บวัตถุประสงค์
                             }
                             
                             response = requests.post(FORM_URL, data=form_data)
@@ -179,40 +191,37 @@ with col_left:
     with tab2:
         st.markdown("### ❌ ยกเลิกการจองเดิม")
         if not df.empty:
-            # 1. สร้างตัวเลือกรายการ Job
             job_options = {f"Job {row['No']}: {row['Car']} ({row['User']})": row for _, row in df.iterrows()}
             selected_job_label = st.selectbox("เลือกรายการจองที่ต้องการยกเลิก", list(job_options.keys()))
             
             target_job = job_options[selected_job_label]
             
-            # 2. เพิ่มช่องพิมพ์ชื่อเพื่อยืนยันความเป็นเจ้าของ Job
             st.markdown("⚠️ **ระบบความปลอดภัย:** คุณสามารถยกเลิกได้เฉพาะรายการจองของคุณเองเท่านั้น")
             confirm_user = st.text_input("พิมพ์ชื่อ-นามสกุลของคุณ เพื่อยืนยันความเป็นเจ้าของ", placeholder="พิมพ์ชื่อให้ตรงกับในระบบ")
             
             cancel_button = st.button("🚨 ยืนยันการยกเลิกการจองนี้", type="primary", use_container_width=True)
             
             if cancel_button:
-                # ทำความสะอาดข้อมูลชื่อเพื่อเอามาเปรียบเทียบ (ตัดช่องว่าง และทำเป็นตัวเล็ก)
                 original_user = str(target_job['User']).strip().lower()
                 input_user_confirm = confirm_user.strip().lower()
                 
                 if not input_user_confirm:
                     st.error("❌ กรุณากรอกชื่อของคุณเพื่อยืนยันตัวตนก่อนทำการยกเลิกครับ")
-                
-                # ตรวจสอบว่าชื่อตรงกันหรือไม่
                 elif input_user_confirm != original_user:
                     st.error(f"❌ ไม่สามารถยกเลิกได้! รายการนี้ถูกจองโดยคุณ '{target_job['User']}' กรุณาระบุชื่อผู้จองให้ถูกต้อง")
-                
                 else:
                     try:
-                        # ผ่านเงื่อนไข -> ส่งข้อมูลสถานะยกเลิกเข้า Google Form
+                        # ดึงวัตถุประสงค์การใช้งานเดิมไปส่งต่อด้วยเพื่อไม่ให้ข้อมูลฟิลด์ใหม่บนคลาวด์หายไป
+                        current_purpose = target_job['Purpose'] if 'Purpose' in target_job and pd.notna(target_job['Purpose']) else ""
+                        
                         cancel_data = {
                             "entry.1395769328": int(target_job['No']),
                             "entry.779880298": target_job['Car'],
                             "entry.572197217": target_job['Start_Date'].strftime('%Y-%m-%d %H:%M:%S'),
                             "entry.466730705": target_job['Finish_Date'].strftime('%Y-%m-%d %H:%M:%S'),
                             "entry.26753276": target_job['Location'],
-                            "entry.665863470": f"[CANCELLED] {target_job['User']}"
+                            "entry.665863470": f"[CANCELLED] {target_job['User']}",
+                            "entry.YOUR_PURPOSE_ENTRY_ID": current_purpose  # 👈 ส่งค่าวัตถุประสงค์เดิมกลับไปด้วยตอนยกเลิก
                         }
                         
                         response = requests.post(FORM_URL, data=cancel_data)
@@ -227,21 +236,6 @@ with col_left:
             st.write("ไม่มีรายการจองที่สามารถยกเลิกได้ในขณะนี้")
 
 with col_right:
-    hover_js = """
-    function(info) {
-        // สร้างข้อความสำหรับการ Tooltip
-        var tooltipText = info.event.title;
-        
-        // หากต้องการให้ Tooltip จัดรูปแบบสวยงามขึ้น หรือแยกบรรทัด (ใช้ \n)
-        if (info.event.extendedProps && info.event.extendedProps.description) {
-            tooltipText = info.event.extendedProps.description;
-        }
-        
-        // ใส่ข้อความลงในแอตทริบิวต์ title ของ Element เพื่อให้แสดงตอนเมาส์ชี้
-        info.el.setAttribute('title', tooltipText);
-    }
-    """
-    # 2. ปรับตัวเลือกปฏิทิน (เพิ่มรายละเอียดเหตุการณ์เข้าไปใน events ด่านล่างก่อน)
     calendar_options = {
         "initialView": "dayGridMonth",
         "headerToolbar": {
@@ -253,10 +247,8 @@ with col_right:
         "editable": False, 
         "selectable": True, 
         "locale": "en",
-        # เพิ่มการตั้งค่าให้แสดงข้อความในบล็อกแบบสมบูรณ์ ไม่โดนตัดท้ายบรรทัด
         "eventDisplay": "block" 
     }
-    # รันปฏิทินแบบคลีนๆ โดยไม่มีพารามิเตอร์ js_code เพื่อป้องกัน TypeError
     calendar(
         events=calendar_events, 
         options=calendar_options, 
