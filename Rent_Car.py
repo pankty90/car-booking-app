@@ -80,20 +80,26 @@ if not filtered_df.empty:
         user_info = f" [By: {row['User']}]" if 'User' in row and pd.notna(row['User']) else ""
         job_no = int(row['No'])
         
-        # เตรียมฟอร์แมตวันที่และเวลาให้คนอ่านง่าย
+        # แก้ไขลูปสำหรับการสร้าง events ด้านบนโค้ดของคุณ
         start_str = row['Start_Date'].strftime('%d/%m/%Y %H:%M')
         finish_str = row['Finish_Date'].strftime('%d/%m/%Y %H:%M')
         
+        # รวมข้อความทั้งหมดไว้ในฟิลด์ title และใช้ \n ขึ้นบรรทัดใหม่
+        full_title = (
+            f"🚗 {row['Car']} (Job: {job_no})\n"
+            f"📍 สถานที่: {row['Location']}\n"
+            f"👤 ผู้จอง: {row['User']}\n"
+            f"⏱️ เวลา: {start_str} ถึง {finish_str}"
+        )
+        
         calendar_events.append({
-            "title": f"🚗 {row['Car']} (Job: {job_no})",
+            "title": full_title,  # ส่งข้อความยาวเข้าไปที่ title ตรงๆ
             "start": row['Start_Date'].isoformat(),
             "end": row['Finish_Date'].isoformat(),
             "backgroundColor": bg_color,
             "borderColor": border_color,
             "textColor": "#ffffff" if not is_boom else "#033c4e",
-            "allDay": False,
-            # 🔥 เพิ่มฟิลด์ description ตรงนี้เพื่อเอาไปใช้แสดงตอนเมาส์ชี้ (แยกบรรทัดสวยงาม)
-            "description": f"ประเภทรถ: {row['Car']}\nJob No: {job_no}\nผู้จอง: {row['User']}\nสถานที่: {row['Location']}\nเริ่ม: {start_str}\nคืน: {finish_str}"
+            "allDay": False
         })
 
 col_left, col_right = st.columns([1, 2.5])
@@ -246,15 +252,19 @@ with col_right:
         "slotLabelFormat": {"hour": "2-digit", "minute": "2-digit", "hour12": False},
         "editable": False, 
         "selectable": True, 
-        "locale": "en"
+        "locale": "en",
+        # เพิ่มการตั้งค่าให้แสดงข้อความในบล็อกแบบสมบูรณ์ ไม่โดนตัดท้ายบรรทัด
+        "eventDisplay": "block" 
     }
+    # รันปฏิทินแบบคลีนๆ โดยไม่มีพารามิเตอร์ js_code เพื่อป้องกัน TypeError
     calendar(
         events=calendar_events, 
         options=calendar_options, 
         custom_css="""
-            .fc-event { cursor: pointer; }
+            .fc-event { 
+                cursor: pointer; 
+                white-space: pre-wrap !important; /* บังคับให้ปฏิทินยอมรับการขึ้นบรรทัดใหม่ \\n */
+            }
         """,
-        callbacks=["eventDidMount"],  # ลงทะเบียนเพื่อให้ฟังก์ชันทำงานตอน Render Event
-        js_code=f"{{ eventDidMount: {hover_js} }}",
         key="car_booking_calendar"
     )
