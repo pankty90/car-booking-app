@@ -176,7 +176,7 @@ with col_left:
                                 "entry.466730705": finish_datetime.strftime('%Y-%m-%d %H:%M:%S'),
                                 "entry.26753276": input_location,
                                 "entry.665863470": input_user.strip(),
-                                "entry.YOUR_PURPOSE_ENTRY_ID": input_purpose.strip()  # 👈 ฟิลด์ใหม่เก็บวัตถุประสงค์
+                                "entry.542993285": input_purpose.strip()  # 👈 ฟิลด์ใหม่เก็บวัตถุประสงค์
                             }
                             
                             response = requests.post(FORM_URL, data=form_data)
