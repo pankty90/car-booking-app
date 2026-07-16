@@ -80,14 +80,20 @@ if not filtered_df.empty:
         user_info = f" [By: {row['User']}]" if 'User' in row and pd.notna(row['User']) else ""
         job_no = int(row['No'])
         
+        # เตรียมฟอร์แมตวันที่และเวลาให้คนอ่านง่าย
+        start_str = row['Start_Date'].strftime('%d/%m/%Y %H:%M')
+        finish_str = row['Finish_Date'].strftime('%d/%m/%Y %H:%M')
+        
         calendar_events.append({
-            "title": f"🚗 {row['Car']} (Job: {job_no}){loc_info}{user_info}",
+            "title": f"🚗 {row['Car']} (Job: {job_no})",
             "start": row['Start_Date'].isoformat(),
             "end": row['Finish_Date'].isoformat(),
             "backgroundColor": bg_color,
             "borderColor": border_color,
             "textColor": "#ffffff" if not is_boom else "#033c4e",
-            "allDay": False
+            "allDay": False,
+            # 🔥 เพิ่มฟิลด์ description ตรงนี้เพื่อเอาไปใช้แสดงตอนเมาส์ชี้ (แยกบรรทัดสวยงาม)
+            "description": f"ประเภทรถ: {row['Car']}\nJob No: {job_no}\nผู้จอง: {row['User']}\nสถานที่: {row['Location']}\nเริ่ม: {start_str}\nคืน: {finish_str}"
         })
 
 col_left, col_right = st.columns([1, 2.5])
@@ -215,10 +221,42 @@ with col_left:
             st.write("ไม่มีรายการจองที่สามารถยกเลิกได้ในขณะนี้")
 
 with col_right:
+    hover_js = """
+    function(info) {
+        // สร้างข้อความสำหรับการ Tooltip
+        var tooltipText = info.event.title;
+        
+        // หากต้องการให้ Tooltip จัดรูปแบบสวยงามขึ้น หรือแยกบรรทัด (ใช้ \n)
+        if (info.event.extendedProps && info.event.extendedProps.description) {
+            tooltipText = info.event.extendedProps.description;
+        }
+        
+        // ใส่ข้อความลงในแอตทริบิวต์ title ของ Element เพื่อให้แสดงตอนเมาส์ชี้
+        info.el.setAttribute('title', tooltipText);
+    }
+    """
+    # 2. ปรับตัวเลือกปฏิทิน (เพิ่มรายละเอียดเหตุการณ์เข้าไปใน events ด่านล่างก่อน)
     calendar_options = {
         "initialView": "dayGridMonth",
-        "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth,timeGridWeek,timeGridDay"},
+        "headerToolbar": {
+            "left": "prev,next today", 
+            "center": "title", 
+            "right": "dayGridMonth,timeGridWeek,timeGridDay"
+        },
         "slotLabelFormat": {"hour": "2-digit", "minute": "2-digit", "hour12": False},
-        "editable": False, "selectable": True, "locale": "en"
+        "editable": False, 
+        "selectable": True, 
+        "locale": "en"
     }
-    calendar(events=calendar_events, options=calendar_options, key="car_booking_calendar")
+    
+    # เรียกใช้งานปฏิทิน พร้อมส่งคำสั่งพฤติกรรม JavaScript (js_code) เข้าไปด้วย
+    calendar(
+        events=calendar_events, 
+        options=calendar_options, 
+        custom_css="""
+            .fc-event { cursor: pointer; }
+        """,
+        callbacks=["eventDidMount"],  # ลงทะเบียนเพื่อให้ฟังก์ชันทำงานตอน Render Event
+        js_code=f"{{ eventDidMount: {hover_js} }}",
+        key="car_booking_calendar"
+    )
