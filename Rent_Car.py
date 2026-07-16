@@ -248,8 +248,6 @@ with col_right:
         "selectable": True, 
         "locale": "en"
     }
-    
-    # เรียกใช้งานปฏิทิน พร้อมส่งคำสั่งพฤติกรรม JavaScript (js_code) เข้าไปด้วย
     calendar(
         events=calendar_events, 
         options=calendar_options, 
